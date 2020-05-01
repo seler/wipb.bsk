@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+
+
+class Rotor(object):
+    def __init__(self, offset=0, shuffle=None):
+        self.offset = offset
+        self.map = []
+
+        for i in xrange(256):
+            self.map.append(i)
+
+        shuffle(self.map)
+
+        self.first = 0
+
+        for i in xrange(offset):
+            self.rotate()
+
+        self.first = self.map[0]
+
+    def encrypt(self, c, reverse=False):
+        #self.pprint()
+        if not reverse:
+            return self.map[c]
+        else:
+            for i in xrange(256):
+                if self.map[i] == c:
+                    return i
+
+    def rotate_slow(self):
+        """
+        Rotates this rotor and. Return ``True`` if it's overflown.
+        """
+        for i in xrange(256):
+            if i == 0:
+                first = self.map[i]
+                self.map[i] = self.map[i + 1]
+            elif i == 255:
+                self.map[i] = first
+            else:
+                self.map[i] = self.map[i + 1]
+
+        if self.first == self.map[0]:
+            return True
+        else:
+            return False
+
+    def rotate(self):
+        self.map = self.map[1:] + self.map[0:1]
+
+
+class Reflector(object):
+    def __init__(self, shuffle):
+        self.map = [i for i in xrange(128)]
+
+        for i in xrange(128):
+            self.map[i] = i + 128
+
+        shuffle(self.map)
+
+        for i in xrange(128):
+            self.map.append(i)
+
+        for i in xrange(128):
+            self.map[self.map[i]] = i
+
+    def encrypt(self, c):
+        return self.map[c]
+
+
+class Enigma(object):
+
+    def __init__(self, key, n_rotors=6, offsets=None, shuffle=None, set_key=None):
+        self.shuffle = shuffle
+        self.set_key = set_key
+        self.n_rotors = n_rotors
+        self.key = key
+
+        self.set_key(key)
+
+        self.reflector = Reflector(self.shuffle)
+        self.rotors = []
+        if offsets is not None:
+            self.offsets = offsets
+        else:
+            self.offsets = [0 for x in xrange(n_rotors)]
+
+        self.get_rotors()
+
+    def encrypt(self, buf):
+        outbuf = []
+
+        for c in map(ord, buf):
+            for rotor in self.rotors:
+                c = rotor.encrypt(c)
+
+            c = self.reflector.encrypt(c)
+
+            for rotor in reversed(self.rotors):
+                c = rotor.encrypt(c, reverse=True)
+
+            overflown = True
+            for rotor in reversed(self.rotors):
+                if overflown:
+                    overflown = rotor.rotate()
+
+            outbuf.append(c)
+
+        return ''.join(map(chr, outbuf))
+
+    def get_rotors(self):
+        for i in xrange(self.n_rotors):
+            rotor = Rotor(offset=self.offsets[i], shuffle=shuffle)
+            self.rotors.append(rotor)
+
+
+if __name__ == "__main__":
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Encrypts/decrypts given file using enigma algorithm.')
+    parser.add_argument('-k', '--key',
+                help='key used to generation of rotors',
+                required=True)
+    parser.add_argument('-i', '--infile',
+                nargs='?',
+                type=argparse.FileType('rb'),
+                default=sys.stdin,
+                help='input file to process, if not given stdin will be used')
+    parser.add_argument('-o', '--outfile',
+                nargs='?',
+                type=argparse.FileType('wb'),
+                default=sys.stdout,
+                help='output file to process, if not given stdout will be used')
+    parser.add_argument('-n', '--n_rotors',
+                dest='n_rotors',
+                default=6,
+                type=int,
+                help='number of rotors')
+    shuffler = 'random'
+    parser.add_argument('-p', '--positions',
+                dest='positions',
+                nargs='+',
+                metavar='X',
+                default=None, type=int,
+                help='starting positions')
+
+    args = parser.parse_args()
+
+    def get_shuffler():
+        shuffle = __import__(shuffler).shuffle
+        set_key = __import__(shuffler).seed
+        return shuffle, set_key
+
+    if args.positions is not None:
+        if args.n_rotors != len(args.positions):
+            parser.print_usage()
+            parser.exit(status=1, message="error: wrong number of positions\n")
+
+    shuffle, set_key = get_shuffler()
+
+    enigma = Enigma(args.key, args.n_rotors, args.positions, shuffle, set_key)
+    result = enigma.encrypt(args.infile.read())
+    args.outfile.write(result)

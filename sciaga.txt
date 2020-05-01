@@ -1,0 +1,15 @@
+python macierzowe.py -e -ma 'AlaMaZajebanyPomysl' '4-3-2-1-5'
+python macierzowe.py -d -ma 'MalAaejaZbPynaolsymx' '4-3-2-1-5'
+
+python macierzowe.py -e -mb 'AlaMaKota' 'klucz'
+python macierzowe.py -d -mb 'MaAKloata' 'klucz'
+
+python macierzowe.py -e -mc 'AlaMaKotaxxxxx' 'klucz'
+python macierzowe.py -d -mc 'MxAaKtxloaxaxx' 'klucz'
+
+python railfence.py -e 'Ala ma kota' 3
+python railfence.py -d 'Amol akta a' 3
+
+python caesar.py -e abcd 7 13
+python caesar.py -d hume 7 13
+

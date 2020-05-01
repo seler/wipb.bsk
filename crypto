@@ -1,0 +1,60 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+__author__ = u"Rafał Selewońko <rafal@selewonko.com>"
+
+from cryptography import MacierzoweA, MacierzoweB, MacierzoweC, \
+                         RailFence, Vigenere, Caesar
+
+if __name__ == "__main__":
+    import sys
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Encrypts/decrypts given file using enigma algorithm.')
+    parser.add_argument('-k', '--key',
+                help='key used to generation of rotors',
+                required=True)
+    parser.add_argument('-i', '--infile',
+                nargs='?',
+                type=argparse.FileType('rb'),
+                default=sys.stdin,
+                help='input file to process, if not given stdin will be used')
+    parser.add_argument('-o', '--outfile',
+                nargs='?',
+                type=argparse.FileType('wb'),
+                default=sys.stdout,
+                help='output file to process, if not given stdout will be used')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-e', '--encrypt',
+                dest='encrypt',
+                action='store_true',
+                help='encrypt')
+    group.add_argument('-d', '--decrypt',
+                dest='decrypt',
+                action='store_true',
+                help='decrypt')
+    parser.add_argument('-n', '--n_rotors',
+                dest='n_rotors',
+                default=6,
+                type=int,
+                help='number of rotors')
+    parser.add_argument('-p', '--positions',
+                dest='positions',
+                nargs='+',
+                metavar='X',
+                default=None, type=int,
+                help='starting positions')
+
+    args = parser.parse_args()
+
+    if args.positions is not None:
+        if args.n_rotors != len(args.positions):
+            parser.print_usage()
+            parser.exit(status=1, message="error: wrong number of positions\n")
+
+    enigma = Enigma(args.key, args.n_rotors, args.positions)
+    if args.encrypt:
+        result = enigma.encrypt(args.infile.read())
+    elif args.decrypt:
+        result = enigma.decrypt(args.infile.read())
+    args.outfile.write(result)
